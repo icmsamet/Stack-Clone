@@ -11,6 +11,7 @@ Unity 2021.3.2f1
 ## Used Assets
 - Dotween Pro [LINK](https://assetstore.unity.com/packages/tools/visual-scripting/dotween-pro-32416)
 - Odin Inspector [LINK](https://assetstore.unity.com/packages/tools/utilities/odin-inspector-and-serializer-89041)
+- URP Vertical Fog [LINK](https://assetstore.unity.com/packages/tools/urp-vertical-fog-175935)
 
 ## About Project
 This project was developed using the Unity game engine and the C# programming language. The game's models used simple objects in Unity, based on a simple concept trying to align the cubes coming from the right and left according to the cube under it.
