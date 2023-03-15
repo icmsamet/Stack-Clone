@@ -2,76 +2,154 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using DG.Tweening;
+using Sirenix.OdinInspector;
+using System;
 
 namespace Block
 {
     public class Block : MonoBehaviour
     {
+        public bool isFirst = false;
         public enum Direction
         {
             Horizontal,
             Vertical
         }
+        [HideIf("isFirst")] public Direction directionType;
+        [HideIf("isFirst")] public GameObject lastObj;
+        float moveTime;
+        GameObject divided;
+        bool isDivided = false;
 
-        public Direction direction;
-        [SerializeField] GameObject lastObj;
-
-        private void Start()
+        public void Move()
         {
-            transform.DOMoveZ(-transform.position.z, 1).SetLoops(-1, LoopType.Yoyo).SetEase(Ease.Linear);
+            if (isFirst)
+                return;
+            switch (directionType)
+            {
+                case Direction.Horizontal:
+                    transform.DOMoveX(-transform.position.x, moveTime).SetLoops(-1, LoopType.Yoyo).SetEase(Ease.Linear);
+                    break;
+                case Direction.Vertical:
+                    transform.DOMoveZ(-transform.position.z, moveTime).SetLoops(-1, LoopType.Yoyo).SetEase(Ease.Linear);
+                    break;
+            }
         }
-
-        [ContextMenu("Divide")]
+        private void Update()
+        {
+            if (isFirst)
+                return;
+            if (Input.GetMouseButtonDown(0) && !isDivided)
+            {
+                DivideObj();
+                isDivided = true;
+                transform.DOKill();
+            }
+        }
         public void DivideObj()
         {
-            bool direction = transform.localPosition.z > 0;
-            Vector3 fark = transform.position - lastObj.transform.position;
+            float hangOver = GetHangOver();
 
-            GameObject fallDivide = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            fallDivide.name = "Fall";
-            fallDivide.transform.localScale = new Vector3(transform.localScale.x, transform.localScale.y, fark.z);
-            fallDivide.GetComponent<MeshRenderer>().material.color = Color.cyan;
+            float max = directionType == Direction.Vertical ? lastObj.transform.localScale.z : lastObj.transform.localScale.x;
 
-            GameObject divided = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            divided.name = "Divided";
-            divided.transform.localScale = new Vector3(transform.localScale.x, transform.localScale.y, direction ? transform.localScale.z - fark.z : transform.localScale.z + fark.z);
-            divided.GetComponent<MeshRenderer>().material.color = Color.red;
-
-            if (direction)
+            if (Mathf.Abs(hangOver) > max)
             {
-                if (fark.z > transform.localScale.z)
-                {
-                    Destroy(fallDivide);
-                    Destroy(divided);
-                    print("game over");
-                }
-                else
-                {
-                    fallDivide.transform.position = new Vector3(0, lastObj.transform.position.y, (GetObjectBoundSizes(lastObj).z / 2) + GetObjectBoundSizes(fallDivide).z / 2);
-                    divided.transform.position = new Vector3(0, transform.position.y, (GetObjectBoundSizes(lastObj).z / 2) - GetObjectBoundSizes(divided).z / 2);
-                    Destroy(this.gameObject);
-                }
+                GameManager.GameManager.instance.FailGame();
+                return;
             }
             else
             {
-                if (fark.z < (transform.localScale.z * -1))
-                {
-                    Destroy(fallDivide);
-                    Destroy(divided);
-                    print("game over");
-                }
-                else
-                {
-                    fallDivide.transform.position = new Vector3(0, lastObj.transform.position.y, ((GetObjectBoundSizes(lastObj).z / 2) + GetObjectBoundSizes(fallDivide).z / 2) * -1);
-                    divided.transform.position = new Vector3(0, transform.position.y, ((GetObjectBoundSizes(lastObj).z / 2) - GetObjectBoundSizes(divided).z / 2) * -1);
-                    Destroy(this.gameObject);
-                }
+                float direction = hangOver > 0 ? 1f : -1f;
+                SplitCube(hangOver, direction);
+                divided = this.gameObject;
+
+                GameManager.GameManager.instance.AddPosition();
+                GameManager.GameManager.instance.SetLastObj(divided);
+                GameManager.GameManager.instance.Spawn();
+                GameManager.GameManager.instance.CutEffect();
+                GameManager.GameManager.instance.AddScore();
             }
         }
-        Vector3 GetObjectBoundSizes(GameObject obj)
+        private float GetHangOver()
         {
-            var mesh = obj.GetComponent<MeshRenderer>();
-            return mesh.bounds.size;
+            if (directionType == Direction.Vertical)
+            {
+                return transform.position.z - lastObj.transform.position.z;
+            }
+            else
+            {
+                return transform.position.x - lastObj.transform.position.x;
+            }
+        }
+        private void SplitCube(float hangOver, float direction)
+        {
+            switch (directionType)
+            {
+                case Direction.Horizontal:
+                    float newXsize = lastObj.transform.localScale.x - Mathf.Abs(hangOver);
+                    float fallingBlockXSize = transform.localScale.x - newXsize;
+
+                    float newXposition = lastObj.transform.position.x + (hangOver / 2);
+                    transform.localScale = new Vector3(newXsize, transform.localScale.y, transform.localScale.z);
+                    transform.position = new Vector3(newXposition, transform.position.y, transform.position.z);
+
+                    float cubeEdgeX = transform.position.x + (newXsize / 2f * direction);
+                    float fallingBlockxPosition = cubeEdgeX + fallingBlockXSize / 2f * direction;
+
+                    SpawnDropCube(fallingBlockxPosition, fallingBlockXSize);
+                    break;
+                case Direction.Vertical:
+                    float newZsize = lastObj.transform.localScale.z - Mathf.Abs(hangOver);
+                    float fallingBlockZSize = transform.localScale.z - newZsize;
+
+                    float newZposition = lastObj.transform.position.z + (hangOver / 2);
+                    transform.localScale = new Vector3(transform.localScale.x, transform.localScale.y, newZsize);
+                    transform.position = new Vector3(transform.position.x, transform.position.y, newZposition);
+
+                    float cubeEdgeZ = transform.position.z + (newZsize / 2f * direction);
+                    float fallingBlockZPosition = cubeEdgeZ + fallingBlockZSize / 2f * direction;
+
+                    SpawnDropCube(fallingBlockZPosition, fallingBlockZSize);
+                    break;
+            }
+        }
+        private void SpawnDropCube(float fallingBlockZPosition, float fallingBlockSize)
+        {
+            var cube = GameObject.CreatePrimitive(PrimitiveType.Cube);
+
+            if (directionType == Direction.Vertical)
+            {
+                cube.transform.localScale = new Vector3(transform.localScale.x, transform.localScale.y, fallingBlockSize);
+                cube.transform.position = new Vector3(transform.position.x, transform.position.y, fallingBlockZPosition);
+            }
+            else
+            {
+                cube.transform.localScale = new Vector3(fallingBlockSize, transform.localScale.y, transform.localScale.z);
+                cube.transform.position = new Vector3(fallingBlockZPosition, transform.position.y, transform.position.z);
+            }
+            cube.AddComponent<Rigidbody>();
+            cube.GetComponent<MeshRenderer>().material.color = GetComponent<MeshRenderer>().material.color;
+            Destroy(cube, 2);
+        }
+        public void SetDirection(bool isHorizontal)
+        {
+            directionType = isHorizontal == true ? Direction.Horizontal : Direction.Vertical;
+        }
+        public void SetMoveTime(float time)
+        {
+            moveTime = time;
+        }
+        public void SetColor(Color color)
+        {
+            GetComponent<MeshRenderer>().material.color = color;
+        }
+        public void SetLastObj(GameObject _lastObj)
+        {
+            lastObj = _lastObj;
+        }
+        private void OnBecameInvisible()
+        {
+            gameObject.SetActive(false);
         }
     }
 }

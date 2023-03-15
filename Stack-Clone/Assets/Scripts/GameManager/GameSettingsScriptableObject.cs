@@ -8,6 +8,8 @@ namespace GameManager
     [CreateAssetMenu(fileName = "NewGameSettings",menuName = "Game Settings")]
     public class GameSettingsScriptableObject : ScriptableObject
     {
-        public float moveSpeed = 1.5f;
+        public float moveTime = 1.5f;
+        public float colorFade = 0.02f;
+        public float blockThickness = .25f;
     }
 }

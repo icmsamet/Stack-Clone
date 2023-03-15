@@ -12,4 +12,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b98e45c517a28934e88b66592cbdb8d0, type: 3}
   m_Name: GameSettings
   m_EditorClassIdentifier: 
-  moveSpeed: 1.5
+  moveTime: 1.5
+  colorFade: 0.05
+  blockThickness: 0.5
